@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Kakuro Board</title>
+        <link rel="icon" href="https://www.google.com/s2/favicons?domain=github.com">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="">
+        <style>
+            h1 {
+                text-align: center;
+            }
+
+            #board {
+                border: 1px solid black;
+                width:fit-content;
+                margin: 0 auto;
+            }
+
+            button {
+                background-color: #27a5ff; /* Green */
+                border: none;
+                color: white;
+                padding: 8px 13px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 5px;
+                cursor: pointer;
+                border-radius: .4rem;
+            }
+        </style>
+    </head>
+    <body>
+        <main style="display:flex; flex-direction: column; align-items: center; margin: auto; text-align: center; justify-content: center;">
+            <h1>Kakuro Solver Board</h1>
+            <p>Input your clues.</p>
+            <p>Select the cells to fill your clues and empty clues, leave empty cells blank.</p>
+            <div id="board"></div>
+            <p id="board-info"></p>
+            <div style="display:flex; justify-content: center; margin-top: 20px;">
+                <button id="clearBoard" onclick="clearBoard()">Clear Board</button>
+                <button id="solveBoard" onclick="solveBoard()">Solve Board</button>
+            </div>
+            <div id="cellMenu" style="position:absolute; display:none; background:white; border:1px solid black; padding:10px;">
+                <div style="padding-right:10px; display:flex;">
+                    <p style="padding-right:10px;">a&#41;</p>
+                    <button style="padding-right:10px;" onclick="setCellType('block')">Empty Clue</button>    
+                </div>
+                <div style="display:flex;">
+                    <p style="padding-right:10px;">b&#41;</p>
+                    <button style="padding-right:10px;" onclick="setCellType('clue')">Clue</button>
+                </div>
+            </div>
+        </main>
+        <script>
+            const params = new URLSearchParams(window.location.search);
+            const height = parseInt(params.get('height'), 10);
+            const width = parseInt(params.get('width'), 10);
+
+            const boardInfo = document.getElementById('board-info');
+            boardInfo.textContent = `Grid size: W${width} x H${height}`;
+
+            const boardDiv = document.getElementById('board');
+
+            const BLANK = null;
+            const CLUE = (d, r, [pD, pR], [coordsD, coordsR] ) => ({ down: d, right: r, permsD: pD, permsR: pR, coordsD: coordsD, coordsR: coordsR });
+            const CELL =  '*';
+            const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+            let grid = [];
+
+            // Initialize the grid
+            for (let row = 0; row < height + 1; row++) {
+                grid[row] = [];
+                for (let col = 0; col < width + 1; col++) {
+                    grid[row][col] = null;
+                }
+            }
+
+
+            // Generate the board
+            for (let row = 0; row < height + 1; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.style.display = 'flex';
+                for (let col = 0; col < width + 1; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.style.width = '50px';
+                    cell.style.height = '50px';
+                    cell.style.border = '1px solid black';
+                    cell.style.display = 'flex';
+                    cell.style.justifyContent = 'center';
+                    cell.style.alignItems = 'center';
+                    cell.style.backgroundColor = 'white';
+                    cell.setAttribute('tabindex', '0');
+                    cell.addEventListener("keydown", (event) => {
+                        if (event.key === "a") {
+                            setCellType('block');
+                        }
+                        if (event.key === "b") {
+                            setCellType('clue');
+                        }
+                    });
+                    cell.addEventListener('click', (e) => {
+                        selectedCell = cell;
+                        const menu = document.getElementById('cellMenu');
+                        menu.style.left = `${e.pageX}px`;
+                        menu.style.top = `${e.pageY}px`;
+                        menu.style.display = 'flex';
+                        cell.focus();
+                    });
+                    rowDiv.appendChild(cell);
+                    grid[row][col] = cell;
+                }
+                boardDiv.appendChild(rowDiv);
+            }
+
+            function setCellType(type) {
+                const menu = document.getElementById('cellMenu');
+                menu.style.display = 'none';
+            
+                if (!selectedCell) return;
+            
+                if (type === 'block') {
+                    selectedCell.style.backgroundColor = 'black';
+                    selectedCell.innerHTML = '';
+                } else if (type === 'clue') {
+                    selectedCell.style.backgroundColor = '#ccc';
+                    const rightSum = prompt('Enter right sum (leave blank if none)');
+                    const downSum = prompt('Enter down sum (leave blank if none)');
+                    selectedCell.innerHTML = `
+                        <div style="font-size:10px;">
+                            ${rightSum ? '→ ' + rightSum : ''}<br>
+                            ${downSum ? '↓ ' + downSum : ''}
+                        </div>
+                    `;
+                }
+            
+                selectedCell = null;
+            }
+
+            function clearBoard() {
+                const cells = document.querySelectorAll('#board .cell');
+                cells.forEach(cell => {
+                    cell.style.backgroundColor = 'white';
+                    cell.innerHTML = '';
+                });
+            }
+
+            function permissable(nums, sum) {
+                let total = 0;
+                for (let i = 0; i < nums.length; i++) {
+                    total += nums[i];
+                    if (nums[i] < 1 || nums[i] > 9) {
+                        return false;
+                    }
+                }
+            
+                return total === sum && nums.length === new Set(nums).size;
+            }
+            
+            function getValidPermutations(length, targetSum) {
+                const results = [];
+            
+                function combine(current, remaining, start) {
+                    if (current.length === length) {
+                        if (permissable(current, targetSum)) {
+                        permute(current, 0);
+                        }
+                        return;
+                    }
+            
+                    for (let i = start; i < remaining.length; i++) {
+                        combine([...current, remaining[i]], remaining, i + 1);
+                    }
+                }
+            
+                function permute(arr, index) {
+                    if (index === arr.length - 1) {
+                        results.push([...arr]);
+                        return;
+                    }
+            
+                    for (let i = index; i < arr.length; i++) {
+                        [arr[index], arr[i]] = [arr[i], arr[index]];
+                        permute(arr, index + 1);
+                        [arr[index], arr[i]] = [arr[i], arr[index]];
+                    }
+                }
+            
+                combine([], digits, 0);
+                return results;
+            }
+
+            function solveBoard() {
+                let board = [];
+
+                for (let row = 0; row < height + 1; row++) {
+                    board[row] = [];
+                    for (let col = 0; col < width + 1; col++) {
+                        if (grid[row][col].style.backgroundColor === 'white') {
+                            board[row][col] = CELL;
+                        } else if (grid[row][col].style.backgroundColor === 'black') {
+                            board[row][col] = BLANK;
+                        } else {
+                            const clueText = grid[row][col].innerHTML;
+                            const rightSum = clueText.match(/→ (\d+)/);
+                            const downSum = clueText.match(/↓ (\d+)/);
+                            const right = rightSum ? parseInt(rightSum[1], 10) : 0;
+                            const down = downSum ? parseInt(downSum[1], 10) : 0;
+                            board[row][col] = CLUE(down, right, [null, null], [null, null]);
+                        }
+                    }
+                }
+
+                // console.log(board);
+
+                for (let r = 0; r < board.length; r++) {
+                    for (let c = 0; c < board[r].length; c++) {
+                        const cell = board[r][c];
+                        if (cell === BLANK) continue;
+                
+                        if (cell.down > 0) {
+                            let length = 0;
+                            while (board[r + 1] && board[r + 1][c] === CELL) {
+                                r++;
+                                length++;
+                            }
+                            r -= length;
+                            const permsD = getValidPermutations(length, cell.down);
+                            // console.log("row:" + r + "col:" + c + "length:" + length + "Perms Down:" + permsD);
+                            board[r][c].permsD = permsD;
+                            board[r][c].coordsD = [];
+                            for (let i = 1; i <= length; i++) {
+                                board[r][c].coordsD.push([r + i, c]);
+                            }
+                            // console.log(board[r][c].coordsD);
+                        }
+                        if (cell.right > 0) {
+                            let length = 0;
+                            while (board[r] && board[r][c + 1] === CELL) {
+                                c++;
+                                length++;
+                            }
+                            c -= length;
+                            const permsR = getValidPermutations(length, cell.right);
+                            // console.log("row:" + r + "col:" + c + "length:" + length + "Perms Right:" + permsR);
+                            board[r][c].permsR = permsR;
+                            board[r][c].coordsR = [];
+                            for (let i = 1; i <= length; i++) {
+                                board[r][c].coordsR.push([r, c + i]);
+                            }
+                            // console.log(board[r][c].coordsR);
+                        }
+                    }
+                }
+                if (!solveGrid(board)) {
+                    alert("No solution available!");
+                }
+                // console.log(board);
+                for (let r = 0; r < board.length; r++) {
+                    for (let c = 0; c < board[r].length; c++) {
+                        const cell = board[r][c];
+                        if (cell === BLANK) continue;
+                        if (cell === CELL) continue;
+                        // console.log(cell)
+                        if (digits.includes(cell)) {
+                            grid[r][c].innerHTML = cell;
+                        }
+                        
+                    }
+                }
+            }
+
+            function solveGrid(grid) {
+                let clues = [];
+                for (let r = 0; r < grid.length; r++) {
+                    for (let c = 0; c < grid[r].length; c++) {
+                        if (grid[r][c] === BLANK || grid[r][c] === CELL) continue;
+                        clues.push([r, c]);
+                    }
+                }
+                
+                function arraysEqual(a, b) {
+                    return a.length === b.length && a.every((val, i) => val === b[i]);
+                }
+            
+                function backtrack(index, direction) {
+                    if (index === clues.length) {
+                        if (checkGrid(grid)) {
+                            console.log(grid);
+                            return true;
+                        }
+                        console.log("Invalid grid");
+                        console.log(grid);
+                        return false;
+                    }
+            
+                    const [r, c] = clues[index];
+                    const cell = grid[r][c];
+            
+                    if (direction === 0) {
+                        if (cell.permsD === null) {
+                            return backtrack(index, 1);
+                        }
+            
+                        let current = cell.coordsD.map(([row, col]) => grid[row][col]);
+            
+                        if (current.includes('*')) {
+                            let potential = cell.permsD;
+            
+                            for (let i = 0; i < current.length; i++) {
+                                if (current[i] !== '*') {
+                                    potential = potential.filter(p => p[i] === current[i]);
+                                }
+                            }
+            
+                            for (let perm of potential) {
+                                for (let i = 0; i < perm.length; i++) {
+                                    grid[cell.coordsD[i][0]][cell.coordsD[i][1]] = perm[i];
+                                }
+                                if (backtrack(index, 1)) return true;
+                                for (let i = 0; i < perm.length; i++) {
+                                    grid[cell.coordsD[i][0]][cell.coordsD[i][1]] = current[i];
+                                }
+                            }
+                        } else {
+                            if (!cell.permsD.some(p => arraysEqual(p, current))) {
+                                return false;
+                            }
+                            return backtrack(index, 1);
+                        }
+                    } else {
+                        if (cell.permsR === null) {
+                            return backtrack(index + 1, 0);
+                        }
+            
+                        let current = cell.coordsR.map(([row, col]) => grid[row][col]);
+            
+                        if (current.includes('*')) {
+                            let potential = cell.permsR;
+            
+                            for (let i = 0; i < current.length; i++) {
+                                if (current[i] !== '*') {
+                                    potential = potential.filter(p => p[i] === current[i]);
+                                }
+                            }
+            
+                            for (let perm of potential) {
+                                for (let i = 0; i < perm.length; i++) {
+                                    grid[cell.coordsR[i][0]][cell.coordsR[i][1]] = perm[i];
+                                }
+                                if (backtrack(index + 1, 0)) return true;
+                                for (let i = 0; i < perm.length; i++) {
+                                    grid[cell.coordsR[i][0]][cell.coordsR[i][1]] = current[i];
+                                }
+                            }
+                        } else {
+                            if (!cell.permsR.some(p => arraysEqual(p, current))) {
+                                return false;
+                            }
+                            return backtrack(index + 1, 0);
+                        }
+                    }
+            
+                    return false;
+                }
+            
+                return backtrack(0, 0);
+            }
+
+            // Only use this function to check the grid after it has been solved
+            function checkGrid(grid) {
+                for (let r = 0; r < grid.length; r++) {
+                    for (let c = 0; c < grid[r].length; c++) {
+                        const cell = grid[r][c];
+                        if (cell === BLANK || cell === CELL) continue;
+
+                        if (cell.down > 0) {
+                            let total = 0;
+                            let length = 1;
+                            let set = [];
+                            while (grid[r + length] && digits.includes(grid[r + length][c])) {
+                                if (set.includes(grid[r + length][c])) {
+                                    return false;
+                                }
+                                else {
+                                    set.push(grid[r + length][c]);
+                                }
+                                total += grid[r + length][c];
+                                length++;
+                            }
+                            if (total !== cell.down) {
+                                return false;
+                            }
+                        }
+                        if (cell.right > 0) {
+                            let total = 0;
+                            let length = 1;
+                            let set = [];
+                            while (grid[r][c + length] && digits.includes(grid[r][c + length])) {
+                                if (set.includes(grid[r][c + length])) {
+                                    return false;
+                                }
+                                else {
+                                    set.push(grid[r][c + length]);
+                                }
+                                total += grid[r][c + length];
+                                length++;
+                            }
+                            if (total !== cell.right) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+        </script>
+    </body>
+</html>

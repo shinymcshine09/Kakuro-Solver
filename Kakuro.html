@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Kakuro Solver</title>
+        <style>
+            input[type="submit"] {
+                background-color: #27a5ff; /* Green */
+                border: none;
+                color: white;
+                padding: 8px 13px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: .4rem;
+            }
+
+            input[type="number"] {
+                width: 50px;
+                padding: 5px;
+                margin: 5px;
+                border-radius: .4rem;
+                border: 1px solid #ccc;
+            }
+
+            label {
+                font-size: 16px;
+                margin: 0 auto;
+            }
+
+        </style>
+    </head>
+    <body style="margin: 0; padding: 0;">
+        <main style="position: relative; height: 100vh; overflow: hidden;">
+            <div id="background" style="position: absolute; top: 0; left: 0; z-index: 0; "></div>
+        
+            <div style="border: 2px solid black; padding:20px; position: relative; background-color: white; width: 500px; height: 200px; margin: auto; border-radius: .4rem; z-index: 1; text-align: center; top: 50%; transform: translateY(-50%);">
+                <h1>Welcome to the Kakuro Solver</h1>
+                <p>Here you can solve Kakuro, a logic puzzle game.</p>
+                <p>Pick a board size.</p>
+                <form onsubmit="openNewWindow(event)" id="boardSize">
+                    <label for="boardWidth">Width:</label>
+                    <input type="number" id="boardWidth" min="1" max="20" value="5">
+                    <label for="boardHeight">Height:</label>
+                    <input type="number" id="boardHeight" min="1" max="20" value="5">
+                    <input type="submit" value="Generate Board">
+                </form>
+            </div>
+        </main>
+        <script>
+            const CELL_SIZE = 40;
+            const background = document.getElementById('background');
+
+            function generateBackground() {
+                background.innerHTML = '';
+
+                const rows = Math.ceil(window.innerHeight / CELL_SIZE);
+                const cols = Math.ceil(window.innerWidth / CELL_SIZE);
+
+                for (let i = 0; i < rows; i++) {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    for (let j = 0; j < cols; j++) {
+                        const cell = document.createElement('div');
+                        cell.style.width = `${CELL_SIZE}px`;
+                        cell.style.height = `${CELL_SIZE}px`;
+                        cell.style.border = '1px solid black';
+                        cell.style.display = 'flex';
+                        cell.style.justifyContent = 'center';
+                        cell.style.alignItems = 'center';
+                        cell.style.backgroundColor = `while`;
+                        cell.style.overflow = 'hidden';
+                        row.appendChild(cell);
+                    }
+                    background.appendChild(row);
+                }
+            }
+            
+            generateBackground();
+
+            window.addEventListener('resize', generateBackground);
+
+            function openNewWindow(event) {
+                event.preventDefault();
+            
+                const inputs = document.querySelectorAll('#boardSize');
+                const height = document.getElementById('boardHeight').value;
+                const width = document.getElementById('boardWidth').value;
+            
+                const newWindow = window.open(`board.html?height=${height}&width=${width}`, '_blank');
+            }
+        </script>
+    </body>
+</html>
