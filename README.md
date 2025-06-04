@@ -42,10 +42,10 @@ cd Kakuro-Solver
 •	Kakuro.html: Starting page to input different board sizes.  
 •	Kakuro.js: JavaScript file containing the logic for solving Kakuro puzzles (not really needed).  
 
-### Contributing
+## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your improvements.
 
-### License
+## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
